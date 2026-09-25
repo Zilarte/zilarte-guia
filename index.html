@@ -187,18 +187,70 @@ HTML
         let listaNumeros = [];
         let indiceActual = 0;
 
-        // Cargar datos guardados previamente si existen
-        window.onload = function() {
+        function obtenerListaDesdeHash() {
+            const raw = window.location.hash.slice(1);
+            if (!raw) return null;
+
+            let texto;
+            try {
+                texto = decodeURIComponent(raw);
+            } catch (e) {
+                texto = raw;
+            }
+
+            const numeros = texto.split(',')
+                .map(n => n.trim())
+                .filter(n => /^-?\d+(?:\.\d+)?$/.test(n));
+
+            return numeros.length > 0 ? numeros : null;
+        }
+
+        function listasIguales(a, b) {
+            return a.length === b.length && a.every((n, i) => n === b[i]);
+        }
+
+        function cargarListaDesdeHash(numeros) {
+            const guardado = localStorage.getItem('zilarte_lista');
+            const indiceGuardado = localStorage.getItem('zilarte_indice');
+            let listaGuardada = [];
+
+            try {
+                listaGuardada = guardado ? JSON.parse(guardado) : [];
+            } catch (e) {
+                listaGuardada = [];
+            }
+
+            listaNumeros = numeros;
+            if (listasIguales(listaGuardada, numeros) && indiceGuardado !== null) {
+                indiceActual = parseInt(indiceGuardado, 10) || 0;
+            } else {
+                indiceActual = 0;
+            }
+
+            guardarEstado();
+            mostrarContador();
+        }
+
+        function iniciar() {
+            const desdeHash = obtenerListaDesdeHash();
+            if (desdeHash) {
+                cargarListaDesdeHash(desdeHash);
+                return;
+            }
+
             const guardado = localStorage.getItem('zilarte_lista');
             const indiceGuardado = localStorage.getItem('zilarte_indice');
             if (guardado) {
                 listaNumeros = JSON.parse(guardado);
-                indiceActual = indiceGuardado ? parseInt(indiceGuardado) : 0;
+                indiceActual = indiceGuardado ? parseInt(indiceGuardado, 10) : 0;
                 if (listaNumeros.length > 0) {
                     mostrarContador();
                 }
             }
-        };
+        }
+
+        window.onload = iniciar;
+        window.addEventListener('hashchange', iniciar);
 
         function cargarLista() {
             const texto = document.getElementById('numbers-input').value;
@@ -277,6 +329,9 @@ HTML
             if (confirm("¿Seguro que quieres borrar la lista actual?")) {
                 localStorage.removeItem('zilarte_lista');
                 localStorage.removeItem('zilarte_indice');
+                if (window.location.hash) {
+                    history.replaceState(null, '', window.location.pathname + window.location.search);
+                }
                 document.getElementById('setup-section').style.display = 'block';
                 document.getElementById('counter-section').style.display = 'none';
                 document.getElementById('numbers-input').value = '';
